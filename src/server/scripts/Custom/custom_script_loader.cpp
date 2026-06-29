@@ -21,6 +21,7 @@ void AddSC_custom_npcs();
 void AddSC_quest_conversation();
 void AddSC_solocraft();
 void AddLfgSoloScripts();
+void AddSC_npc_instance_reset();
 
 void AddCustomScripts()
 {
@@ -28,4 +29,5 @@ void AddCustomScripts()
     AddSC_quest_conversation();
     AddSC_solocraft();
 	AddLfgSoloScripts();
+    AddSC_npc_instance_reset();
 }
