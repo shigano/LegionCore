@@ -6,7 +6,7 @@
  * Free Software Foundation; either version 2 of the License, or (at your
  * option) any later version.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
+ * This program is distributed in the hope that it will be useful, but WITHOUTInitTalentForLevel();
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
@@ -2889,7 +2889,7 @@ void Player::GiveLevel(uint8 level)
     SetCreateHealth(0);
     SetCreateMana(basemana);
 
-    InitTalentForLevel();
+    InitTalentForLevel(); // Spells are added to action bar in here when leveling up (and more)
     InitTaxiNodesForLevel();
 
     if (level < PLAYER_LEVEL_MIN_HONOR)
@@ -2956,8 +2956,8 @@ void Player::InitTalentForLevel()
 {
     uint8 level = getLevel();
     // talents base at level diff (talents = level - 9 but some can be used already)
-    if (level < MIN_SPECIALIZATION_LEVEL)
-        ResetTalentSpecialization();
+    //if (level < MIN_SPECIALIZATION_LEVEL)
+        //ResetTalentSpecialization();
 
     uint32 talentTiers = CalculateTalentsTiers();
 	if (IsPlayerBot());
