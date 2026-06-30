@@ -69,7 +69,16 @@ public:
             player->PrepareQuestMenu(creature->GetGUID());
 
         if (creature->IsVendor())
-            AddGossipItemFor(player, GOSSIP_ICON_VENDOR, GOSSIP_TEXT_BROWSE_GOODS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
+        {
+            const char* localizedBrowseGoods;
+            switch (player->GetSession()->GetSessionDbcLocale())
+        {
+        case LOCALE_frFR: localizedBrowseGoods = GOSSIP_TEXT_BROWSE_GOODS_FR; break;
+        default: localizedBrowseGoods = GOSSIP_TEXT_BROWSE_GOODS;
+        }
+
+    AddGossipItemFor(player, GOSSIP_ICON_VENDOR, localizedBrowseGoods, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_TRADE);
+        }
 
         if (creature->IsInnkeeper())
         {
