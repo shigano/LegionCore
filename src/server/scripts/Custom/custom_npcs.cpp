@@ -26,10 +26,20 @@ class npc_rate_xp_modifier : public CreatureScript
     public:
         npc_rate_xp_modifier() : CreatureScript("npc_rate_xp_modifier") { }
 
-#define MAX_RATE uint32(10)
+#define MAX_RATE uint32(3)
 
         bool OnGossipHello(Player* player, Creature* creature) override
         {
+            player->PlayerTalkClass->ClearMenus();
+
+            // Texte principal FR
+                AddGossipItemFor(
+                player,
+                GOSSIP_ICON_CHAT,
+            "Bienvenue aventurier. Ici, vous pouvez ajuster votre taux d’expérience selon vos besoins. Choisissez le rythme qui vous convient le mieux.",
+            GOSSIP_SENDER_MAIN,
+            9999
+            );
             for (uint32 i = 1; i <= MAX_RATE; ++i)
             {
                 if (i == player->GetPersonnalXpRate())
@@ -39,14 +49,14 @@ class npc_rate_xp_modifier : public CreatureScript
                     continue;
 
                 std::ostringstream gossipText;
-                gossipText << "Rate x" << i;
+                gossipText << "Taux d'expérience x" << i;
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, gossipText.str(), GOSSIP_SENDER_MAIN, i);
             }
 
             if (player->GetPersonnalXpRate())
             {
                 std::ostringstream gossipText;
-                gossipText << "Default Rate - x" << sWorld->getRate(RATE_XP_KILL);
+                gossipText << "Taux par défaut - x" << sWorld->getRate(RATE_XP_KILL);
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, gossipText.str(), GOSSIP_SENDER_MAIN, 0);
             }
 
