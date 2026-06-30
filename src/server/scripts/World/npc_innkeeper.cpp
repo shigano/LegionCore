@@ -37,11 +37,12 @@ enum Spells
 };
 
 #define LOCALE_TRICK_OR_TREAT_0 "Trick or Treat!"
-#define LOCALE_TRICK_OR_TREAT_2 "Des bonbons ou des blagues!"
+#define LOCALE_TRICK_OR_TREAT_2 "Des bonbons ou un sort!"
 #define LOCALE_TRICK_OR_TREAT_3 "Süßes oder Saures!"
 #define LOCALE_TRICK_OR_TREAT_6 "¡Truco o trato!"
 
 #define LOCALE_INNKEEPER_0 "Make this inn my home."
+#define LOCALE_INNKEEPER_2 "Faire de cette auberge mon foyer."
 #define LOCALE_INNKEEPER_3 "Ich möchte dieses Gasthaus zu meinem Heimatort machen."
 
 class npc_innkeeper : public CreatureScript
@@ -75,6 +76,7 @@ public:
             const char* localizedEntry;
             switch (player->GetSession()->GetSessionDbcLocale())
             {
+                case LOCALE_frFR: localizedEntry = LOCALE_INNKEEPER_2; break;
                 case LOCALE_deDE: localizedEntry = LOCALE_INNKEEPER_3; break;
                 case LOCALE_enUS: default: localizedEntry = LOCALE_INNKEEPER_0;
             }
