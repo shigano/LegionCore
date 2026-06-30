@@ -30,6 +30,9 @@ class Player;
 // Gossip Item Text
 #define GOSSIP_TEXT_BROWSE_GOODS        "I'd like to browse your goods."
 #define GOSSIP_TEXT_TRAIN               "Train me!"
+#define GOSSIP_TEXT_BROWSE_GOODS_FR     "Je voudrais voir vos marchandises."
+#define GOSSIP_TEXT_TRAIN_FR            "Entraînez-moi !"
+
 
 enum eTradeskill
 {
