@@ -43,6 +43,41 @@ EndContentData */
 #include "ScriptMgr.h"
 #include "ScriptedEscortAI.h"
 #include "ScriptedGossip.h"
+#include "Player.h"
+#include "WorldSession.h"
+
+/*###################################################################
+ * Localization helpers (EN / frFR)
+ *
+ * NOTE: Ideally these lines should live in creature_text /
+ * broadcast_text_locale so the client-side locale system handles
+ * this automatically. Until that migration happens (see the
+ * "needs moved to db" comment above), these helpers pick the
+ * French string when a French client is detected and fall back
+ * to English otherwise.
+ *###################################################################*/
+
+// Picks EN or FR text based on a specific player's client locale.
+// Use this whenever the dialogue is tied to a known player (gossip,
+// quest turn-ins, escorts that track a PlayerGUID, etc.)
+inline std::string LocalizeFor(Player* p_Player, char const* p_TextEN, char const* p_TextFR)
+{
+    if (p_Player && p_Player->GetSession() && p_Player->GetSession()->GetSessionDbcLocale() == LOCALE_frFR)
+        return p_TextFR;
+
+    return p_TextEN;
+}
+
+// Picks EN or FR text using the nearest player's locale as a stand-in
+// when the dialogue is ambient/public and no single PlayerGUID is
+// tracked by the AI (e.g. background cutscenes anyone nearby can see).
+inline std::string LocalizeNear(Creature* p_Source, char const* p_TextEN, char const* p_TextFR)
+{
+    if (Player* l_Nearby = p_Source->SelectNearestPlayer(40.0f))
+        return LocalizeFor(l_Nearby, p_TextEN, p_TextFR);
+
+    return p_TextEN;
+}
 
 /************\
  * npc_thug *
@@ -606,7 +641,8 @@ public:
             { // Say needs moved to creature_texts
             case 0:
                 {
-                    creature->Say("Listen, pal. I don't want any trouble, ok? I didn't see who murdered 'em, but I sure heard it! Lots of yelling. Human voices... you dig? Now get out of here before I change my mind about beating you up and takin' your shoes.", LANG_UNIVERSAL);
+                    creature->Say(LocalizeFor(player, "Listen, pal. I don't want any trouble, ok? I didn't see who murdered 'em, but I sure heard it! Lots of yelling. Human voices... you dig? Now get out of here before I change my mind about beating you up and takin' your shoes.",
+                        "Écoute, mon pote. Je veux pas d'ennuis, ok ? J'ai pas vu qui les a assassinés, mais je l'ai bien entendu ! Beaucoup de cris. Des voix humaines... tu piges ? Maintenant dégage avant que je change d'avis et que je te tabasse pour te piquer tes chaussures."), LANG_UNIVERSAL);
                     player->KilledMonsterCredit(CREDIT_SAY1);
                     creature->SetStandState(UNIT_STAND_STATE_STAND);
                     creature->DespawnOrUnsummon(5000);
@@ -614,7 +650,8 @@ public:
                 }
             case 1:
                 {
-                    creature->Say("I didn't see who killed 'm, bub/sis, but I got a whiff. Smelled rich, kinda like you. Damn shame too. Furlbrows were a fixture around here. Nice people, always willin' to share a meal or a patch of dirt.", LANG_UNIVERSAL);
+                    creature->Say(LocalizeFor(player, "I didn't see who killed 'm, bub/sis, but I got a whiff. Smelled rich, kinda like you. Damn shame too. Furlbrows were a fixture around here. Nice people, always willin' to share a meal or a patch of dirt.",
+                        "J'ai pas vu qui les a tués, mon pote/ma poule, mais j'ai eu un indice. Ça sentait le riche, un peu comme toi. Sacré dommage aussi. Les Furlbrow, c'était une institution par ici. Des gens bien, toujours prêts à partager un repas ou un coin de terre."), LANG_UNIVERSAL);
                     player->KilledMonsterCredit(CREDIT_SAY2);
                     creature->SetStandState(UNIT_STAND_STATE_STAND);
                     creature->DespawnOrUnsummon(5000);
@@ -622,7 +659,8 @@ public:
                 }
             case 2:
                 {
-                    creature->Say("Who killed the Furlbrows? I'll tell you who killed the Furlbrows: KING VARIAN WRYNN. THAT'S WHO! And he's killin' the rest of us too. One bum at a time. The only thing I can tell you is that I saw some gnolls leavin' the place a few hours before the law arrived.", LANG_UNIVERSAL);
+                    creature->Say(LocalizeFor(player, "Who killed the Furlbrows? I'll tell you who killed the Furlbrows: KING VARIAN WRYNN. THAT'S WHO! And he's killin' the rest of us too. One bum at a time. The only thing I can tell you is that I saw some gnolls leavin' the place a few hours before the law arrived.",
+                        "Qui a tué les Furlbrow ? Je vais te dire qui a tué les Furlbrow : LE ROI VARIAN WRYNN. VOILÀ QUI ! Et il nous tue tous les autres aussi. Un clochard à la fois. La seule chose que je peux te dire, c'est que j'ai vu des gnolls quitter les lieux quelques heures avant l'arrivée de la loi."), LANG_UNIVERSAL);
                     player->KilledMonsterCredit(CREDIT_SAY3);
                     creature->SetStandState(UNIT_STAND_STATE_STAND);
                     creature->DespawnOrUnsummon(5000);
@@ -630,7 +668,8 @@ public:
                 }
             case 3:
                 {
-                    creature->Say("Between you, me, and the tree, murlocs killed the Furlbrows. Yep, saw 'em with my own two eyes. Think they'd been casin' the joint for days, maybe months. They left in a hurry once they got wind of 'Johnny Law' and the idiot brigade over there...", LANG_UNIVERSAL);
+                    creature->Say(LocalizeFor(player, "Between you, me, and the tree, murlocs killed the Furlbrows. Yep, saw 'em with my own two eyes. Think they'd been casin' the joint for days, maybe months. They left in a hurry once they got wind of 'Johnny Law' and the idiot brigade over there...",
+                        "Entre toi, moi et l'arbre là-bas, c'est les murlocs qui ont tué les Furlbrow. Ouais, je les ai vus de mes propres yeux. Je pense qu'ils repéraient les lieux depuis des jours, peut-être des mois. Ils sont partis en vitesse dès qu'ils ont eu vent de la 'maréchaussée' et de la brigade d'abrutis là-bas..."), LANG_UNIVERSAL);
                     player->KilledMonsterCredit(CREDIT_SAY4);
                     creature->SetStandState(UNIT_STAND_STATE_STAND);
                     creature->DespawnOrUnsummon(5000);
@@ -653,56 +692,64 @@ public:
                 {
                 case 0:
                     {
-                        creature->Say("Listen, pal. I don't want any trouble, ok? I didn't see who murdered 'em, but I sure heard it! Lots of yelling. Human voices... you dig? Now get out of here before I change my mind about beating you up and takin' your shoes.", LANG_UNIVERSAL);
+                        creature->Say(LocalizeFor(player, "Listen, pal. I don't want any trouble, ok? I didn't see who murdered 'em, but I sure heard it! Lots of yelling. Human voices... you dig? Now get out of here before I change my mind about beating you up and takin' your shoes.",
+                            "Écoute, mon pote. Je veux pas d'ennuis, ok ? J'ai pas vu qui les a assassinés, mais je l'ai bien entendu ! Beaucoup de cris. Des voix humaines... tu piges ? Maintenant dégage avant que je change d'avis et que je te tabasse pour te piquer tes chaussures."), LANG_UNIVERSAL);
                         player->KilledMonsterCredit(CREDIT_SAY1);
                         creature->DespawnOrUnsummon(5000);
                         break;
                     }
                 case 1:
                     {
-                        creature->Say("I didn't see who killed 'm, bub/sis, but I got a whiff. Smelled rich, kinda like you. Damn shame too. Furlbrows were a fixture around here. Nice people, always willin' to share a meal or a patch of dirt.", LANG_UNIVERSAL);
+                        creature->Say(LocalizeFor(player, "I didn't see who killed 'm, bub/sis, but I got a whiff. Smelled rich, kinda like you. Damn shame too. Furlbrows were a fixture around here. Nice people, always willin' to share a meal or a patch of dirt.",
+                            "J'ai pas vu qui les a tués, mon pote/ma poule, mais j'ai eu un indice. Ça sentait le riche, un peu comme toi. Sacré dommage aussi. Les Furlbrow, c'était une institution par ici. Des gens bien, toujours prêts à partager un repas ou un coin de terre."), LANG_UNIVERSAL);
                         player->KilledMonsterCredit(CREDIT_SAY2);
                         creature->DespawnOrUnsummon(5000);
                         break;
                     }
                 case 2:
                     {
-                        creature->Say("Who killed the Furlbrows? I'll tell you who killed the Furlbrows: KING VARIAN WRYNN. THAT'S WHO! And he's killin' the rest of us too. One bum at a time. The only thing I can tell you is that I saw some gnolls leavin' the place a few hours before the law arrived.", LANG_UNIVERSAL);
+                        creature->Say(LocalizeFor(player, "Who killed the Furlbrows? I'll tell you who killed the Furlbrows: KING VARIAN WRYNN. THAT'S WHO! And he's killin' the rest of us too. One bum at a time. The only thing I can tell you is that I saw some gnolls leavin' the place a few hours before the law arrived.",
+                            "Qui a tué les Furlbrow ? Je vais te dire qui a tué les Furlbrow : LE ROI VARIAN WRYNN. VOILÀ QUI ! Et il nous tue tous les autres aussi. Un clochard à la fois. La seule chose que je peux te dire, c'est que j'ai vu des gnolls quitter les lieux quelques heures avant l'arrivée de la loi."), LANG_UNIVERSAL);
                         player->KilledMonsterCredit(CREDIT_SAY3);
                         creature->DespawnOrUnsummon(5000);
                         break;
                     }
                 case 3:
                     {
-                        creature->Say("Between you, me, and the tree, murlocs killed the Furlbrows. Yep, saw 'em with my own two eyes. Think they'd been casin' the joint for days, maybe months. They left in a hurry once they got wind of 'Johnny Law' and the idiot brigade over there...", LANG_UNIVERSAL);
+                        creature->Say(LocalizeFor(player, "Between you, me, and the tree, murlocs killed the Furlbrows. Yep, saw 'em with my own two eyes. Think they'd been casin' the joint for days, maybe months. They left in a hurry once they got wind of 'Johnny Law' and the idiot brigade over there...",
+                            "Entre toi, moi et l'arbre là-bas, c'est les murlocs qui ont tué les Furlbrow. Ouais, je les ai vus de mes propres yeux. Je pense qu'ils repéraient les lieux depuis des jours, peut-être des mois. Ils sont partis en vitesse dès qu'ils ont eu vent de la 'maréchaussée' et de la brigade d'abrutis là-bas..."), LANG_UNIVERSAL);
                         player->KilledMonsterCredit(CREDIT_SAY4);
                         creature->DespawnOrUnsummon(5000);
                         break;
                     }
                 case 4:
                     {
-                        creature->Say("I wonder if it's possible to eat rocks? Got plenty of rocks around here. Just imagine it! I'd be the richest person in the world for making that discovery!", LANG_UNIVERSAL);
+                        creature->Say(LocalizeFor(player, "I wonder if it's possible to eat rocks? Got plenty of rocks around here. Just imagine it! I'd be the richest person in the world for making that discovery!",
+                            "Je me demande si c'est possible de manger des cailloux ? Y en a plein par ici. Imagine un peu ! Je serais la personne la plus riche du monde pour avoir fait cette découverte !"), LANG_UNIVERSAL);
                         creature->SetReactState(REACT_AGGRESSIVE);
                         creature->AI()->AttackStart(player);
                         break;
                     }
                 case 5:
                     {
-                        creature->Say("Looks like I found us a savory and clean piece of dirt! Tonight we eat like kings, Mr. Penguin! Of course I'll share it with you! You're my best friend!", LANG_UNIVERSAL);
+                        creature->Say(LocalizeFor(player, "Looks like I found us a savory and clean piece of dirt! Tonight we eat like kings, Mr. Penguin! Of course I'll share it with you! You're my best friend!",
+                            "On dirait que je nous ai trouvé un bon coin de terre bien propre ! Ce soir on mange comme des rois, M. Pingouin ! Bien sûr que je vais partager avec toi ! T'es mon meilleur ami !"), LANG_UNIVERSAL);
                         creature->SetReactState(REACT_AGGRESSIVE);
                         creature->AI()->AttackStart(player);
                         break;
                     }
                 case 6:
                     {
-                        creature->Say("HAHAHAH! Good one, Mr. Penguin! GOOD ONE!", LANG_UNIVERSAL);
+                        creature->Say(LocalizeFor(player, "HAHAHAH! Good one, Mr. Penguin! GOOD ONE!",
+                            "HAHAHA ! Bien joué, M. Pingouin ! BIEN JOUÉ !"), LANG_UNIVERSAL);
                         creature->SetReactState(REACT_AGGRESSIVE);
                         creature->AI()->AttackStart(player);
                         break;
                     }
                 case 7:
                     {
-                        creature->Say("What happened to me? I used to be the king of Stormwind!", LANG_UNIVERSAL);
+                        creature->Say(LocalizeFor(player, "What happened to me? I used to be the king of Stormwind!",
+                            "Qu'est-ce qui m'est arrivé ? J'étais autrefois le roi de Hurlevent !"), LANG_UNIVERSAL);
                         creature->SetReactState(REACT_AGGRESSIVE);
                         creature->AI()->AttackStart(player);
                         break;
@@ -799,77 +846,88 @@ public:
                                 }
                             case 2:
                                 {
-                                    glubtok1->Say("What little human want? Why you call Glubtok?", LANG_UNIVERSAL);
+                                    glubtok1->Say(LocalizeNear(glubtok1, "What little human want? Why you call Glubtok?",
+                                        "Petit humain vouloir quoi ? Pourquoi appeler Glubtok ?"), LANG_UNIVERSAL);
                                     EntryTime = 5000;
                                     Phase++;
                                     break;
                                 }
                             case 3:
                                 {
-                                    shadowy1->Say("Sad... Is this the life that you had hoped for, Glubtok? Running two bit extortion operations out of a cave?", LANG_UNIVERSAL);
+                                    shadowy1->Say(LocalizeNear(shadowy1, "Sad... Is this the life that you had hoped for, Glubtok? Running two bit extortion operations out of a cave?",
+                                        "Triste... Est-ce la vie dont tu rêvais, Glubtok ? Faire de la petite extorsion depuis une grotte ?"), LANG_UNIVERSAL);
                                     EntryTime = 8500;
                                     Phase++;
                                     break;
                                 }
                             case 4:
                                 {
-                                    glubtok1->Say("Glubtok crash you!", LANG_UNIVERSAL);
+                                    glubtok1->Say(LocalizeNear(glubtok1, "Glubtok crash you!",
+                                        "Glubtok te fracasser !"), LANG_UNIVERSAL);
                                     EntryTime = 4000;
                                     Phase++;
                                     break;
                                 }
                             case 5:
                                 {
-                                    shadowy1->Say("Oh will you? Do you dare cross that line and risk your life?", LANG_UNIVERSAL);
+                                    shadowy1->Say(LocalizeNear(shadowy1, "Oh will you? Do you dare cross that line and risk your life?",
+                                        "Oh, vraiment ? Oses-tu franchir cette ligne et risquer ta vie ?"), LANG_UNIVERSAL);
                                     EntryTime = 6500;
                                     Phase++;
                                     break;
                                 }
                             case 6:
                                 {
-                                    shadowy1->Say("You may attempt to kill me - and fail - or you make take option two.", LANG_UNIVERSAL);
+                                    shadowy1->Say(LocalizeNear(shadowy1, "You may attempt to kill me - and fail - or you make take option two.",
+                                        "Tu peux essayer de me tuer - et échouer - ou tu peux choisir l'option deux."), LANG_UNIVERSAL);
                                     EntryTime = 6500;
                                     Phase++;
                                     break;
                                 }
                             case 7:
                                 {
-                                    glubtok1->Say("What is option two.", LANG_UNIVERSAL);
+                                    glubtok1->Say(LocalizeNear(glubtok1, "What is option two.",
+                                        "C'est quoi option deux."), LANG_UNIVERSAL);
                                     EntryTime = 4000;
                                     Phase++;
                                     break;
                                 }
                             case 8:
                                 {
-                                    shadowy1->Say("You join me and I shower wealth and power upon you.", LANG_UNIVERSAL);
+                                    shadowy1->Say(LocalizeNear(shadowy1, "You join me and I shower wealth and power upon you.",
+                                        "Tu me rejoins et je te couvre de richesse et de pouvoir."), LANG_UNIVERSAL);
                                     EntryTime = 7000;
                                     Phase++;
                                     break;
                                 }
                             case 9:
                                 {
-                                    glubtok1->Say("So Glubtok have two choices die or be rich and powerful?", LANG_UNIVERSAL);
+                                    glubtok1->Say(LocalizeNear(glubtok1, "So Glubtok have two choices die or be rich and powerful?",
+                                        "Donc Glubtok avoir deux choix : mourir ou être riche et puissant ?"), LANG_UNIVERSAL);
                                     EntryTime = 7000;
                                     Phase++;
                                     break;
                                 }
                             case 10:
                                 {
-                                    glubtok1->Say("Glubtok take choice two.", LANG_UNIVERSAL);
+                                    glubtok1->Say(LocalizeNear(glubtok1, "Glubtok take choice two.",
+                                        "Glubtok prendre choix deux."), LANG_UNIVERSAL);
                                     EntryTime = 6000;
                                     Phase++;
                                     break;
                                 }
                             case 11:
                                 {
-                                    shadowy1->Say("I thought you'd see it my way.", LANG_UNIVERSAL);
+                                    shadowy1->Say(LocalizeNear(shadowy1, "I thought you'd see it my way.",
+                                        "Je savais que tu verrais les choses comme moi."), LANG_UNIVERSAL);
                                     EntryTime = 6000;
                                     Phase++;
                                     break;
                                 }
                             case 12:
                                 {
-                                    shadowy1->Say("I will call you when the dawning is upon us.", LANG_UNIVERSAL);
+                                    shadowy1->Say(LocalizeNear(shadowy1, "I will call you when the dawning is upon us.",
+                                        "Je t'appellerai quand l'aube sera sur nous."), LANG_UNIVERSAL);
                                     EntryTime = 6000;
                                     Phase++;
                                     break;
@@ -992,7 +1050,8 @@ public:
                 if (who->IsWithinDistInMap(me, 2.0f) && !bSummoned)
                 {
                     PlayerGUID = who->GetGUID();
-                    me->TextEmote("Follow the trail of homeless to the Deadmines dungeon entrance.", NULL, true);
+                    me->TextEmote(LocalizeFor(who->ToPlayer(), "Follow the trail of homeless to the Deadmines dungeon entrance.",
+                        "Suivez la piste des sans-abris jusqu'à l'entrée du donjon des Mines de Fer."), NULL, true);
                 }
             }
         }
@@ -1089,62 +1148,71 @@ public:
                             {
                             case 0:
                                 {
-                                    me->TextEmote("The rally is about to begin!", NULL, true);
+                                    me->TextEmote(LocalizeFor(player, "The rally is about to begin!",
+                                        "Le rassemblement est sur le point de commencer !"), NULL, true);
                                     SummonTimer = 1500;
                                     Phase++;
                                     break;
                                 }
                             case 1:
                                 {
-                                    Shadowy2->Yell("Gather, brothers and sisters! Come, all, and listen!", LANG_UNIVERSAL);
+                                    Shadowy2->Yell(LocalizeFor(player, "Gather, brothers and sisters! Come, all, and listen!",
+                                        "Rassemblez-vous, frères et sœurs ! Venez tous, et écoutez !"), LANG_UNIVERSAL);
                                     SummonTimer = 3000;
                                     Phase++;
                                     break;
                                 }
                             case 2:
                                 {
-                                    Shadowy2->Yell("Brothers. Sisters. We are ABANDONED - the orphaned children of Stormwind.", LANG_UNIVERSAL);
+                                    Shadowy2->Yell(LocalizeFor(player, "Brothers. Sisters. We are ABANDONED - the orphaned children of Stormwind.",
+                                        "Frères. Sœurs. Nous sommes ABANDONNÉS - les enfants orphelins de Hurlevent."), LANG_UNIVERSAL);
                                     SummonTimer = 5500;
                                     Phase++;
                                     break;
                                 }
                             case 3:
                                 {
-                                    Shadowy2->Yell("Our 'king' sits atop his throne made of gold and shrugs at our plight!", LANG_UNIVERSAL);
+                                    Shadowy2->Yell(LocalizeFor(player, "Our 'king' sits atop his throne made of gold and shrugs at our plight!",
+                                        "Notre 'roi' est assis sur son trône fait d'or et hausse les épaules devant notre détresse !"), LANG_UNIVERSAL);
                                     SummonTimer = 4000;
                                     Phase++;
                                     break;
                                 }
                             case 4:
                                 {
-                                    Shadowy2->Yell("Meanwhile, our children die of starvation on these very streets!", LANG_UNIVERSAL);
+                                    Shadowy2->Yell(LocalizeFor(player, "Meanwhile, our children die of starvation on these very streets!",
+                                        "Pendant ce temps, nos enfants meurent de faim dans ces mêmes rues !"), LANG_UNIVERSAL);
                                     SummonTimer = 4500;
                                     Phase++;
                                     break;
                                 }
                             case 5:
                                 {
-                                    Shadowy2->Yell("HIS war, not ours, cost us our livelihood. WE paid for the Alliance's victories with our blood and the blood of our loved ones!", LANG_UNIVERSAL);
+                                    Shadowy2->Yell(LocalizeFor(player, "HIS war, not ours, cost us our livelihood. WE paid for the Alliance's victories with our blood and the blood of our loved ones!",
+                                        "SA guerre, pas la nôtre, nous a coûté notre gagne-pain. C'est NOUS qui avons payé les victoires de l'Alliance avec notre sang et le sang de nos proches !"), LANG_UNIVERSAL);
                                     SummonTimer = 4500;
                                     Phase++;
                                     break;
                                 }
                             case 6:
                                 {
-                                    Shadowy2->Yell("The time has come, brothers and sisters, to stop this injustice!", LANG_UNIVERSAL);
+                                    Shadowy2->Yell(LocalizeFor(player, "The time has come, brothers and sisters, to stop this injustice!",
+                                        "Le moment est venu, frères et sœurs, de mettre fin à cette injustice !"), LANG_UNIVERSAL);
                                     SummonTimer = 4500;
                                     Phase++;
                                     break;
                                 }
                             case 7:
                                 {
-                                    Shadowy2->Yell("The government of Stormwind, of the ALLIANCE, must be made accountable for what it has done to us!", LANG_UNIVERSAL); SummonTimer = 4500;
+                                    Shadowy2->Yell(LocalizeFor(player, "The government of Stormwind, of the ALLIANCE, must be made accountable for what it has done to us!",
+                                        "Le gouvernement de Hurlevent, de l'ALLIANCE, doit rendre des comptes pour ce qu'il nous a fait !"), LANG_UNIVERSAL); SummonTimer = 4500;
                                     Phase++;
                                     break;
                                 }
                             case 8:
                                 {
-                                    Shadowy2->Yell("Today, we are reborn! Today, we take a stand as men and women, not nameless, faceless numbers!", LANG_UNIVERSAL);
+                                    Shadowy2->Yell(LocalizeFor(player, "Today, we are reborn! Today, we take a stand as men and women, not nameless, faceless numbers!",
+                                        "Aujourd'hui, nous renaissons ! Aujourd'hui, nous nous dressons en hommes et en femmes, et non plus en chiffres anonymes et sans visage !"), LANG_UNIVERSAL);
                                     SummonTimer = 4500;
                                     Phase++;
                                     break;
@@ -1155,7 +1223,8 @@ public:
                                     {
                                         if(!bText)
                                         {
-                                            me->TextEmote("<homeless people applaud and cheer>", NULL, true);
+                                            me->TextEmote(LocalizeFor(player, "<homeless people applaud and cheer>",
+                                                "<les sans-abris applaudissent et acclament>"), NULL, true);
                                             listener->TextEmote(TEXT_EMOTE_APPLAUD, ObjectAccessor::GetPlayer(*me, PlayerGUID), false);
                                             bText = true;
                                         }
@@ -1292,63 +1361,72 @@ public:
                                     }
                                 case 1:
                                     {
-                                        Glubtok3->Say("The gnolls have failed, mistress.", LANG_UNIVERSAL);
+                                        Glubtok3->Say(LocalizeFor(player, "The gnolls have failed, mistress.",
+                                            "Les gnolls ont échoué, maîtresse."), LANG_UNIVERSAL);
                                         SummonTimer = 6000;
                                         Phase++;
                                         break;
                                     }
                                 case 2:
                                     {
-                                        Shadowy3->Say("They provided the distraction I required. We continue as planned.", LANG_UNIVERSAL);
+                                        Shadowy3->Say(LocalizeFor(player, "They provided the distraction I required. We continue as planned.",
+                                            "Ils ont fourni la diversion dont j'avais besoin. On continue comme prévu."), LANG_UNIVERSAL);
                                         SummonTimer = 6000;
                                         Phase++;
                                         break;
                                     }
                                 case 3:
                                     {
-                                        Glubtok3->Say("But mistress, the admiral is sti...", LANG_UNIVERSAL);
+                                        Glubtok3->Say(LocalizeFor(player, "But mistress, the admiral is sti...",
+                                            "Mais maîtresse, l'amiral est enco..."), LANG_UNIVERSAL);
                                         SummonTimer = 6000;
                                         Phase++;
                                         break;
                                     }
                                 case 4:
                                     {
-                                        Shadowy3->Say("We will free the admiral during the dawning.", LANG_UNIVERSAL);
+                                        Shadowy3->Say(LocalizeFor(player, "We will free the admiral during the dawning.",
+                                            "Nous libérerons l'amiral durant l'aube."), LANG_UNIVERSAL);
                                         SummonTimer = 6000;
                                         Phase++;
                                         break;
                                     }
                                 case 5:
                                     {
-                                        Glubtok3->Say("Yes, mistress.", LANG_UNIVERSAL);
+                                        Glubtok3->Say(LocalizeFor(player, "Yes, mistress.",
+                                            "Oui, maîtresse."), LANG_UNIVERSAL);
                                         SummonTimer = 6000;
                                         Phase++;
                                         break;
                                     }
                                 case 6:
                                     {
-                                        Shadowy3->Say("Judgment day is soon upon us, Helix.", LANG_UNIVERSAL);
+                                        Shadowy3->Say(LocalizeFor(player, "Judgment day is soon upon us, Helix.",
+                                            "Le jour du jugement approche, Helix."), LANG_UNIVERSAL);
                                         SummonTimer = 6000;
                                         Phase++;
                                         break;
                                     }
                                 case 7:
                                     {
-                                        Shadowy3->Say("Call for the people. I wish to speak to them one last time before the dawning.", LANG_UNIVERSAL);
+                                        Shadowy3->Say(LocalizeFor(player, "Call for the people. I wish to speak to them one last time before the dawning.",
+                                            "Convoque le peuple. Je souhaite lui parler une dernière fois avant l'aube."), LANG_UNIVERSAL);
                                         SummonTimer = 6000;
                                         Phase++;
                                         break;
                                     }
                                 case 8:
                                     {
-                                        Glubtok3->Say("Moonbrook, mistress?", LANG_UNIVERSAL);
+                                        Glubtok3->Say(LocalizeFor(player, "Moonbrook, mistress?",
+                                            "Moonbrook, maîtresse ?"), LANG_UNIVERSAL);
                                         SummonTimer = 6000;
                                         Phase++;
                                         break;
                                     }
                                 case 9:
                                     {
-                                        Shadowy3->Say("Aye. Tonight.", LANG_UNIVERSAL);
+                                        Shadowy3->Say(LocalizeFor(player, "Aye. Tonight.",
+                                            "Oui. Ce soir."), LANG_UNIVERSAL);
                                         SummonTimer = 2000;
                                         Phase++;
                                         break;
@@ -1600,7 +1678,7 @@ class npc_rise_br : public CreatureScript
                                 me->SummonCreature(NPC_GUARD, -10504.7f, 1042.87f, 60.518f, 0.0f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 100000);
                                 me->SummonCreature(NPC_INVESTIGATOR, -10509.1f, 1048.56f, 60.518f, 0.0f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 100000);
                                 me->SummonCreature(NPC_INVESTIGATOR3, -10506.3f, 1047.7f, 60.518f, 0.0f, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 100000);
-                                std::string l_Msg = "I don't like this, " + std::string(player->GetName()) + ". Stay alert!";
+                                std::string l_Msg = LocalizeFor(player, "I don't like this, ", "Je n'aime pas ça, ") + std::string(player->GetName()) + LocalizeFor(player, ". Stay alert!", ". Reste sur tes gardes !");
                                 me->Say(l_Msg, LANG_UNIVERSAL);
                                 EventTimer = 4000;
                                 Phase++;
@@ -1617,28 +1695,32 @@ class npc_rise_br : public CreatureScript
                             }
                             case 2:
                             {
-                                Hope->Say("You bastards will burn for what you did.", LANG_UNIVERSAL);
+                                Hope->Say(LocalizeFor(player, "You bastards will burn for what you did.",
+                                    "Vous allez brûler pour ce que vous avez fait, bande de salauds."), LANG_UNIVERSAL);
                                 EventTimer = 4000;
                                 Phase++;
                                 break;
                             }
                             case 3:
                             {
-                                me->Say("Hope! Wha...", LANG_UNIVERSAL);
+                                me->Say(LocalizeFor(player, "Hope! Wha...",
+                                    "Hope ! Qu..."), LANG_UNIVERSAL);
                                 EventTimer = 1500;
                                 Phase++;
                                 break;
                             }
                             case 4:
                             {
-                                Hope->Say("Hope? Is that what I was supposed to feel when I saw my father decapitated by your henchmen?", LANG_UNIVERSAL);
+                                Hope->Say(LocalizeFor(player, "Hope? Is that what I was supposed to feel when I saw my father decapitated by your henchmen?",
+                                    "Hope ? C'est ce que j'étais censée ressentir en voyant mon père décapité par vos hommes de main ?"), LANG_UNIVERSAL);
                                 EventTimer = 12000;
                                 Phase++;
                                 break;
                             }
                             case 5:
                             {
-                                Hope->Say("Hope is a cruel joke, played upon us by a harsh and uncaring world. There is no Hope, there is only Vanessa, Vanessa VanCleef.", LANG_UNIVERSAL);
+                                Hope->Say(LocalizeFor(player, "Hope is a cruel joke, played upon us by a harsh and uncaring world. There is no Hope, there is only Vanessa, Vanessa VanCleef.",
+                                    "Hope n'est qu'une blague cruelle, jouée sur nous par un monde dur et indifférent. Il n'y a pas d'Hope, il n'y a que Vanessa, Vanessa VanCleef."), LANG_UNIVERSAL);
                                 EventTimer = 9500;
                                 Phase++;
                                 break;
@@ -1652,7 +1734,8 @@ class npc_rise_br : public CreatureScript
                             }
                             case 7:
                             {
-                                Hope->Yell("RISE UP BROTHERHOOD! THE DAWNING DAY IS UPON US!", LANG_UNIVERSAL);
+                                Hope->Yell(LocalizeFor(player, "RISE UP BROTHERHOOD! THE DAWNING DAY IS UPON US!",
+                                    "LEVEZ-VOUS, FRATERNITÉ ! LE JOUR DE L'AUBE EST SUR NOUS !"), LANG_UNIVERSAL);
                                 SummonBrotherHood();
                                 EventTimer = 4000;
                                 Phase++;
@@ -1660,7 +1743,8 @@ class npc_rise_br : public CreatureScript
                             }
                             case 8:
                             {
-                                Hope->Say("Tie them up.", LANG_UNIVERSAL);
+                                Hope->Say(LocalizeFor(player, "Tie them up.",
+                                    "Attachez-les."), LANG_UNIVERSAL);
                                 EventTimer = 1500;
                                 Phase++;
                                 break;
@@ -1690,14 +1774,16 @@ class npc_rise_br : public CreatureScript
                             case 12:
                             {
                                 Ripsnarl->CastSpell(Ripsnarl, SPELL_TRANSFORM_HUMAN, true);
-                                Hope->Say("Admiral, your hat.", LANG_UNIVERSAL);
+                                Hope->Say(LocalizeFor(player, "Admiral, your hat.",
+                                    "Amiral, votre chapeau."), LANG_UNIVERSAL);
                                 EventTimer = 4000;
                                 Phase++;
                                 break;
                             }
                             case 13:
                             {
-                                Ripsnarl->Say("Thank you, my dear.", LANG_UNIVERSAL);
+                                Ripsnarl->Say(LocalizeFor(player, "Thank you, my dear.",
+                                    "Merci, ma chère."), LANG_UNIVERSAL);
                                 Ripsnarl->CastSpell(Ripsnarl, SPELL_ADMIRAL_HAT, true);
                                 EventTimer = 4000;
                                 Phase++;
@@ -1721,7 +1807,8 @@ class npc_rise_br : public CreatureScript
                             case 16:
                             {
                                 Hope->SetFacingToObject(player);
-                                std::string l_Msg = "And you, " + std::string(player->GetName()) + ".  I will spare your life. You have done much to help our cause, albeit unwittingly, but the next time we meet it will be as enemies.";
+                                std::string l_Msg = LocalizeFor(player, "And you, ", "Et toi, ") + std::string(player->GetName()) + LocalizeFor(player, ".  I will spare your life. You have done much to help our cause, albeit unwittingly, but the next time we meet it will be as enemies.",
+                                    ". Je t'épargnerai la vie. Tu as beaucoup fait pour aider notre cause, bien qu'involontairement, mais la prochaine fois que nous nous rencontrerons, ce sera en ennemis.");
                                 Hope->Say(l_Msg, LANG_UNIVERSAL);
                                 Ripsnarl->GetMotionMaster()->MovePoint(4, -10516.64f, 1064.78f, 55.362f);
                                 EventTimer = 8000;
@@ -1732,7 +1819,8 @@ class npc_rise_br : public CreatureScript
                             {
                                 Ripsnarl->SetFacingToObject(me);
                                 Hope->GetMotionMaster()->MovePoint(5, -10513.37f, 1056.48f, 57.605f);
-                                me->Say("Why'd you have the Furlbrows killed?", LANG_UNIVERSAL);
+                                me->Say(LocalizeFor(player, "Why'd you have the Furlbrows killed?",
+                                    "Pourquoi as-tu fait tuer les Furlbrow ?"), LANG_UNIVERSAL);
                                 EventTimer = 4500;
                                 Phase++;
                                 break;
@@ -1740,14 +1828,16 @@ class npc_rise_br : public CreatureScript
                             case 18:
                             {
                                 Hope->SetFacingToObject(me);
-                                Hope->Say("I had no choice, lieutenant. They recognized me. The only people in the world who even knew I existed, recognized my face from when I was an infant.", LANG_UNIVERSAL);
+                                Hope->Say(LocalizeFor(player, "I had no choice, lieutenant. They recognized me. The only people in the world who even knew I existed, recognized my face from when I was an infant.",
+                                    "Je n'avais pas le choix, lieutenant. Ils m'ont reconnue. Les seules personnes au monde qui savaient même que j'existais ont reconnu mon visage depuis que j'étais nourrisson."), LANG_UNIVERSAL);
                                 EventTimer = 7000;
                                 Phase++;
                                 break;
                             }
                             case 19:
                             {
-                                Hope->Say("I took no pleasure in their deaths.", LANG_UNIVERSAL);
+                                Hope->Say(LocalizeFor(player, "I took no pleasure in their deaths.",
+                                    "Je n'ai tiré aucun plaisir de leur mort."), LANG_UNIVERSAL);
                                 //SummonFireTrigger(); // I cannot get this to work properly, leaving code in cae someone else works it out
                                 EventTimer = 5000;
                                 Phase++;
@@ -1755,14 +1845,16 @@ class npc_rise_br : public CreatureScript
                             }
                             case 20:
                             {
-                                Hope->Yell("Leave nothing but ashes in your wake, brothers! Burn Sentinel Hill in the ground!", LANG_UNIVERSAL);
+                                Hope->Yell(LocalizeFor(player, "Leave nothing but ashes in your wake, brothers! Burn Sentinel Hill in the ground!",
+                                    "Ne laissez que des cendres derrière vous, frères ! Brûlez Sentinel Hill jusqu'aux fondations !"), LANG_UNIVERSAL);
                                 EventTimer = 4000;
                                 Phase++;
                                 break;
                             }
                             case 21:
                             {
-                                std::string l_Msg = std::string(player->GetName()) + ", get to Stormwind. Tell King Wrynn everything, EVERYTHING! GO NOW!";
+                                std::string l_Msg = std::string(player->GetName()) + LocalizeFor(player, ", get to Stormwind. Tell King Wrynn everything, EVERYTHING! GO NOW!",
+                                    ", va à Hurlevent. Raconte tout au Roi Wrynn, TOUT ! VAS-Y MAINTENANT !");
                                 me->Say(l_Msg, LANG_UNIVERSAL);
                                 Hope->GetMotionMaster()->MovePoint(6, -10518.38f, 1067.99f, 54.84f);
                                 Ripsnarl->SetFacingToObject(Hope);
@@ -2037,56 +2129,64 @@ public:
                             {
                                 case 0:
                                 {
-                                    Investigator04->Say("You were standing right here! What the hell did you see?Speak up!", LANG_UNIVERSAL);
+                                    Investigator04->Say(LocalizeNear(Investigator04, "You were standing right here! What the hell did you see?Speak up!",
+                                        "Vous étiez debout ici même ! Qu'est-ce que vous avez vu, bon sang ? Parlez !"), LANG_UNIVERSAL);
                                     TextTimer = 4000;
                                     Phase++;
                                     break;
                                 }
                                 case 1:
                                 {
-                                    Home->Say("I... I didn't see nothin'! He...he died of natural causes.", LANG_UNIVERSAL);
+                                    Home->Say(LocalizeNear(Home, "I... I didn't see nothin'! He...he died of natural causes.",
+                                        "J'ai... j'ai rien vu du tout ! Il... il est mort de causes naturelles."), LANG_UNIVERSAL);
                                     TextTimer = 6000;
                                     Phase++;
                                     break;
                                 }
                                 case 2:
                                 {
-                                    Investigator04->Say("Natural causes? Two bullets in the chest and his shoes are on his head. What kind of natural death would that be?", LANG_UNIVERSAL);
+                                    Investigator04->Say(LocalizeNear(Investigator04, "Natural causes? Two bullets in the chest and his shoes are on his head. What kind of natural death would that be?",
+                                        "Des causes naturelles ? Deux balles dans la poitrine et ses chaussures sur la tête. Quel genre de mort naturelle c'est, ça ?"), LANG_UNIVERSAL);
                                     TextTimer = 6000;
                                     Phase++;
                                     break;
                                 }
                                 case 3:
                                 {
-                                    me->Say("Doesn't look good, rookie.", LANG_UNIVERSAL);
+                                    me->Say(LocalizeNear(me, "Doesn't look good, rookie.",
+                                        "Ça sent pas bon, bleu."), LANG_UNIVERSAL);
                                     TextTimer = 6000;
                                     Phase++;
                                     break;
                                 }
                                 case 4:
                                 {
-                                    me->Say("This was an execution. Whoever did this was sending a message,,,", LANG_UNIVERSAL);
+                                    me->Say(LocalizeNear(me, "This was an execution. Whoever did this was sending a message,,,",
+                                        "C'était une exécution. Celui qui a fait ça envoyait un message..."), LANG_UNIVERSAL);
                                     TextTimer = 5000;
                                     Phase++;
                                     break;
                                 }
                                 case 5:
                                 {
-                                    me->Say("A message for anyone that would dare snitch on these cryminals.", LANG_UNIVERSAL);
+                                    me->Say(LocalizeNear(me, "A message for anyone that would dare snitch on these cryminals.",
+                                        "Un message pour quiconque oserait balancer ces criminels."), LANG_UNIVERSAL);
                                     TextTimer = 4000;
                                     Phase++;
                                     break;
                                 }
                                 case 6:
                                 {
-                                    me->Say("It would appear that poor Lou really put this foot...", LANG_UNIVERSAL);
+                                    me->Say(LocalizeNear(me, "It would appear that poor Lou really put this foot...",
+                                        "Il semblerait que le pauvre Lou ait vraiment mis son pied..."), LANG_UNIVERSAL);
                                     TextTimer = 4000;
                                     Phase++;
                                     break;
                                 }
                                 case 7:
                                 {
-                                    me->Say("In his mouth...", LANG_UNIVERSAL);
+                                    me->Say(LocalizeNear(me, "In his mouth...",
+                                        "Dans sa bouche..."), LANG_UNIVERSAL);
                                     TextTimer = 30000;
                                     Phase++;
                                     break;
@@ -2198,7 +2298,7 @@ public:
     bool OnUse(Player* player, Item* /*item*/, SpellCastTargets const& targets, ObjectGuid /*castId*/) override
     {
         if (Creature* feed = player->FindNearestCreature(NPC_WESTFALL_STEW, 10.0f, true))
-		if (Creature* homeless = player->FindNearestCreature(NPC_WEST_PLAINS_DRIFTERS, 10.0f, true))
+        if (Creature* homeless = player->FindNearestCreature(NPC_WEST_PLAINS_DRIFTERS, 10.0f, true))
                         {
                                 player->KilledMonsterCredit(NPC_WESTFALL_STEW);
                                 homeless->RemoveAllAuras();
@@ -2208,7 +2308,7 @@ public:
                                 homeless->DespawnOrUnsummon(5000);
 
                         }
-		if (Creature* homeless = player->FindNearestCreature(NPC_TRANSIENT, 10.0f, true))
+        if (Creature* homeless = player->FindNearestCreature(NPC_TRANSIENT, 10.0f, true))
                         {
                                 player->KilledMonsterCredit(NPC_WESTFALL_STEW);
                                 homeless->RemoveAllAuras();
@@ -2218,7 +2318,7 @@ public:
                                 homeless->DespawnOrUnsummon(5000);
 
                         }
-	    if (Creature* homeless = player->FindNearestCreature(NPC_HOMELESS_STORMWIND_CITIZEN, 10.0f, true))
+        if (Creature* homeless = player->FindNearestCreature(NPC_HOMELESS_STORMWIND_CITIZEN, 10.0f, true))
                         {
                                 player->KilledMonsterCredit(NPC_WESTFALL_STEW);
                                 homeless->RemoveAllAuras();
@@ -2228,7 +2328,7 @@ public:
                                 homeless->DespawnOrUnsummon(5000);
 
                         }
-		if (Creature* homeless = player->FindNearestCreature(NPC_HOMELESS_STORMWIND_CITIZEN, 10.0f, true))
+        if (Creature* homeless = player->FindNearestCreature(NPC_HOMELESS_STORMWIND_CITIZEN, 10.0f, true))
                         {
                                 player->KilledMonsterCredit(NPC_WESTFALL_STEW);
                                 homeless->RemoveAllAuras();
@@ -2238,8 +2338,8 @@ public:
                                 homeless->DespawnOrUnsummon(5000);
 
                         }
-		return false;
-	}
+        return false;
+    }
 };
 
 void AddSC_westfall()
